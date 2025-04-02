@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { deleteStudent, getStudents } from 'apis/students.api'
 import classNames from 'classnames'
 import { Link } from 'react-router-dom'
@@ -23,6 +23,7 @@ export default function Students() {
   // }, [])
 
   const queryString: { page?: string } = useQueryString()
+  const queryClient = useQueryClient()
   const page = Number(queryString.page) || 1 //nếu có query thì lấy ko thì lấy =1
   const studentsQuery = useQuery({
     queryKey: ['students', page], //query key đặt cho có nghĩa( ví dụ: danh sách sinh viên)
@@ -35,6 +36,8 @@ export default function Students() {
     mutationFn: (id: number | string) => deleteStudent(id),
     onSuccess: () => {
       toast.success('Xoá thành công!')
+      //Mỗi lần delete thành công thì sẽ báo là queryKey có data cũ rồi cần cập nhật lại
+      queryClient.invalidateQueries({ queryKey: ['students', page], exact: true })
     }
   })
   const totalStudentsCount = Number(studentsQuery.data?.headers['x-total-count'] || 0)
