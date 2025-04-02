@@ -1,12 +1,12 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { addStudent, getStudent } from 'apis/students.api'
+import { addStudent, getStudent, updateStudent } from 'apis/students.api'
 import { useMemo, useState } from 'react'
 import { useMatch, useParams } from 'react-router-dom'
 import { Student } from 'types/students.type'
 import http from 'utils/http'
 import { isAxiosError } from 'utils/utils'
 
-type FormStateType = Omit<Student, 'id'>
+type FormStateType = Omit<Student, 'id'> | Student
 const initialFormState: FormStateType = {
   avatar: '',
   btc_address: '',
@@ -27,7 +27,7 @@ export default function AddStudent() {
   const addMatch = useMatch('/students/add')
   const isAddMode = Boolean(addMatch)
   const { id } = useParams()
-  const { mutate, mutateAsync, error, data, reset } = useMutation({
+  const addStudentMutation = useMutation({
     mutationFn: (body: FormStateType) => {
       return addStudent(body)
     } //return về 1 promise
@@ -43,43 +43,43 @@ export default function AddStudent() {
     enabled: id !== undefined //khi id khác undefined thì queryFn mới được gọi
   })
 
-
+  const updateStudentMutation = useMutation({
+    mutationFn: (_) => updateStudent(id as string, formState as Student)
+  })
 
   // console.log('data', data)  là giữ liệu trả về khi thêm student thành công
   const errorForm: FormError = useMemo(() => {
-    if (isAxiosError<{ error: FormError }>(error) && error.response?.status === 422) {
-      return error.response?.data.error
+    if (
+      isAxiosError<{ error: FormError }>(addStudentMutation.error) &&
+      addStudentMutation.error.response?.status === 422
+    ) {
+      return addStudentMutation.error.response?.data.error
     }
     return null
-  }, [error])
+  }, [addStudentMutation.error])
 
   const handleChange = (name: keyof FormStateType) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setFormState((prev) => ({ ...prev, [name]: event.target.value }))
-    if (data || error) {
-      reset()
+    if (addStudentMutation.data || addStudentMutation.error) {
+      addStudentMutation.reset()
     }
   }
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    //mutate là 1 hàm async nhưng ko trả về 1 promise truyền vào trong là body gửi lên server
-    mutate(formState, {
-      onSuccess: () => {
-        setFormState(initialFormState)
-      }
-    })
-    //onError khi fetch API xong khi có lỗi xảy ra thì sẽ chạy: là 1 callback
-    //onSuccess khi fetch API xong mà ko có lỗi thì sẽ chạy: là 1 callback
-    //onSettled khi fetch API xong dù có lỗi hay không thì sẽ chạy: là 1 callback
-
-    //mutateAsync là một hàm async nhưng trả về 1 promise nên có thể handle được những cái bất đồng bộ
-    // try {
-    //   const data = await mutateAsync(formState)
-    //   console.log(data)
-    //   setFormState(initialFormState)
-    // } catch (error) {
-    //   console.log(error)
-    // }
+    if (isAddMode) {
+      addStudentMutation.mutate(formState, {
+        onSuccess: () => {
+          setFormState(initialFormState)
+        }
+      })
+    } else {
+      updateStudentMutation.mutate(undefined, {
+        onSuccess: (data) => {
+          console.log(data)
+        }
+      })
+    }
   }
   return (
     <div>
