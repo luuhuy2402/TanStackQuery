@@ -1,12 +1,13 @@
 import { useMutation } from '@tanstack/react-query'
 import { addStudent } from 'apis/students.api'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMatch } from 'react-router-dom'
 import { Student } from 'types/students.type'
 import http from 'utils/http'
+import { isAxiosError } from 'utils/utils'
 
-type FromStateType = Omit<Student, 'id'>
-const initialStateFormState: FromStateType = {
+type FormStateType = Omit<Student, 'id'>
+const initialFormState: FormStateType = {
   avatar: '',
   btc_address: '',
   country: '',
@@ -15,23 +16,56 @@ const initialStateFormState: FromStateType = {
   gender: 'other',
   last_name: ''
 }
+
+type FormError =
+  | {
+      [key in keyof FormStateType]: string
+    }
+  | null
 export default function AddStudent() {
-  const [formState, setFormState] = useState<FromStateType>(initialStateFormState)
+  const [formState, setFormState] = useState<FormStateType>(initialFormState)
   const addMatch = useMatch('/students/add')
   const isAddMode = Boolean(addMatch)
-  const { mutate } = useMutation({
-    mutationFn: (body: FromStateType) => {
+  const { mutate, mutateAsync, error, data, reset } = useMutation({
+    mutationFn: (body: FormStateType) => {
       return addStudent(body)
     } //return về 1 promise
   })
+  // console.log('data', data)  là giữ liệu trả về khi thêm student thành công
+  const errorForm: FormError = useMemo(() => {
+    if (isAxiosError<{ error: FormError }>(error) && error.response?.status === 422) {
+      return error.response?.data.error
+    }
+    return null
+  }, [error])
 
-  const handleChange = (name: keyof FromStateType) => (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (name: keyof FormStateType) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setFormState((prev) => ({ ...prev, [name]: event.target.value }))
+    if (data || error) {
+      reset()
+    }
   }
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    mutate(formState) //mutate là 1 hàm async nhưng ko trả về 1 promise truyền vào trong là body gửi lên server
+    //mutate là 1 hàm async nhưng ko trả về 1 promise truyền vào trong là body gửi lên server
+    mutate(formState, {
+      onSuccess: () => {
+        setFormState(initialFormState)
+      }
+    })
+    //onError khi fetch API xong khi có lỗi xảy ra thì sẽ chạy: là 1 callback
+    //onSuccess khi fetch API xong mà ko có lỗi thì sẽ chạy: là 1 callback
+    //onSettled khi fetch API xong dù có lỗi hay không thì sẽ chạy: là 1 callback
+
+    //mutateAsync là một hàm async nhưng trả về 1 promise nên có thể handle được những cái bất đồng bộ
+    // try {
+    //   const data = await mutateAsync(formState)
+    //   console.log(data)
+    //   setFormState(initialFormState)
+    // } catch (error) {
+    //   console.log(error)
+    // }
   }
   return (
     <div>
@@ -39,7 +73,7 @@ export default function AddStudent() {
       <form className='mt-6' onSubmit={handleSubmit}>
         <div className='group relative z-0 mb-6 w-full'>
           <input
-            type='email'
+            type='text'
             name='floating_email'
             id='floating_email'
             className='peer block w-full appearance-none border-0 border-b-2 border-gray-300 bg-transparent px-0 py-2.5 text-sm text-gray-900 focus:border-blue-600 focus:outline-none focus:ring-0 dark:border-gray-600  dark:focus:border-blue-500'
@@ -54,6 +88,12 @@ export default function AddStudent() {
           >
             Email address
           </label>
+          {errorForm && (
+            <p className='mt-2 text-sm text-red-600'>
+              <span className='font-medium'>Lỗi!</span>
+              {errorForm.email}
+            </p>
+          )}
         </div>
 
         <div className='group relative z-0 mb-6 w-full'>
