@@ -1,7 +1,7 @@
-import { useMutation } from '@tanstack/react-query'
-import { addStudent } from 'apis/students.api'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { addStudent, getStudent } from 'apis/students.api'
 import { useMemo, useState } from 'react'
-import { useMatch } from 'react-router-dom'
+import { useMatch, useParams } from 'react-router-dom'
 import { Student } from 'types/students.type'
 import http from 'utils/http'
 import { isAxiosError } from 'utils/utils'
@@ -26,11 +26,25 @@ export default function AddStudent() {
   const [formState, setFormState] = useState<FormStateType>(initialFormState)
   const addMatch = useMatch('/students/add')
   const isAddMode = Boolean(addMatch)
+  const { id } = useParams()
   const { mutate, mutateAsync, error, data, reset } = useMutation({
     mutationFn: (body: FormStateType) => {
       return addStudent(body)
     } //return về 1 promise
   })
+
+  //Fetch dữ liệu lên form để edit
+  useQuery({
+    queryKey: ['student', id],
+    queryFn: () =>
+      getStudent(id as string).then((res) => {
+        setFormState(res.data)
+      }),
+    enabled: id !== undefined //khi id khác undefined thì queryFn mới được gọi
+  })
+
+
+
   // console.log('data', data)  là giữ liệu trả về khi thêm student thành công
   const errorForm: FormError = useMemo(() => {
     if (isAxiosError<{ error: FormError }>(error) && error.response?.status === 422) {
