@@ -25,9 +25,23 @@ export default function Students() {
   const queryString: { page?: string } = useQueryString()
   const queryClient = useQueryClient()
   const page = Number(queryString.page) || 1 //nếu có query thì lấy ko thì lấy =1
+  // const studentsQuery = useQuery({
+  //   queryKey: ['students', page], //query key đặt cho có nghĩa( ví dụ: danh sách sinh viên)
+  //   queryFn: ({ signal }) => getStudents(page, LIMIT, signal),
+  //   //để trước khi dữ liệu trả về để hiển thị thì nó vẫn sẽ hiển thị dữ liệu cũ và khi dữ liệu về thì nó sẽ hiển thị dữ liệu mới( cải thiệu )
+  //   placeholderData: keepPreviousData
+  // })
+
+  //Hủy gọi API tự động
   const studentsQuery = useQuery({
     queryKey: ['students', page], //query key đặt cho có nghĩa( ví dụ: danh sách sinh viên)
-    queryFn: () => getStudents(page, LIMIT),
+    queryFn: () => {
+      const controller = new AbortController()
+      setTimeout(() => {
+        controller.abort()
+      }, 5000)
+      return getStudents(page, LIMIT, controller.signal)
+    },
     //để trước khi dữ liệu trả về để hiển thị thì nó vẫn sẽ hiển thị dữ liệu cũ và khi dữ liệu về thì nó sẽ hiển thị dữ liệu mới( cải thiệu )
     placeholderData: keepPreviousData
   })
@@ -55,9 +69,27 @@ export default function Students() {
     })
   }
 
+  const refetchStudents = () => {
+    studentsQuery.refetch()
+  }
+
+  const cancelRequestStudents = () => {
+    queryClient.cancelQueries({ queryKey: ['students', page] })
+  }
+
   return (
     <div>
       <h1 className='text-lg'>Students</h1>
+      <div>
+        <button className='mt-6 rounded bg-pink-700 px-5 py-2 text-white' onClick={refetchStudents}>
+          Refetch Students
+        </button>
+      </div>
+      <div>
+        <button className='mt-6 rounded bg-pink-700 px-5 py-2 text-white' onClick={cancelRequestStudents}>
+          Cancel Request Students
+        </button>
+      </div>
       <div className='mt-6'>
         <Link
           to='/students/add'
