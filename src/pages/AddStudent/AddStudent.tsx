@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { addStudent, getStudent, updateStudent } from 'apis/students.api'
 import { useMemo, useState } from 'react'
 import { useMatch, useParams } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import { Student } from 'types/students.type'
 import http from 'utils/http'
 import { isAxiosError } from 'utils/utils'
@@ -49,14 +50,12 @@ export default function AddStudent() {
 
   // console.log('data', data)  là giữ liệu trả về khi thêm student thành công
   const errorForm: FormError = useMemo(() => {
-    if (
-      isAxiosError<{ error: FormError }>(addStudentMutation.error) &&
-      addStudentMutation.error.response?.status === 422
-    ) {
-      return addStudentMutation.error.response?.data.error
+    const error = isAddMode ? addStudentMutation.error : updateStudentMutation.error
+    if (isAxiosError<{ error: FormError }>(error) && error.response?.status === 422) {
+      return error.response?.data.error
     }
     return null
-  }, [addStudentMutation.error])
+  }, [addStudentMutation.error, updateStudentMutation.error, isAddMode])
 
   const handleChange = (name: keyof FormStateType) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setFormState((prev) => ({ ...prev, [name]: event.target.value }))
@@ -71,12 +70,13 @@ export default function AddStudent() {
       addStudentMutation.mutate(formState, {
         onSuccess: () => {
           setFormState(initialFormState)
+          toast.success('Add thành công!')
         }
       })
     } else {
       updateStudentMutation.mutate(undefined, {
-        onSuccess: (data) => {
-          console.log(data)
+        onSuccess: (_) => {
+          toast.success('Update thành công!')
         }
       })
     }
@@ -257,7 +257,7 @@ export default function AddStudent() {
           type='submit'
           className='w-full rounded-lg bg-blue-700 px-5 py-2.5 text-center text-sm font-medium text-white hover:bg-blue-800 focus:outline-none focus:ring-4 focus:ring-blue-300 sm:w-auto dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800'
         >
-          Submit
+          {isAddMode ? 'Add' : 'Update'}
         </button>
       </form>
     </div>
